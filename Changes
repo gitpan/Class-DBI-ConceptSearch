@@ -7,3 +7,6 @@ Revision history for Perl extension Class::DBI::ConceptSearch.
 0.02  Mon Feb  2 11:44:30 PST 2004
 	- fixed a bug; ->search() was return a ref to the object
 		rather than the search results.
+
+0.021 Mon Feb  2 11:57:11 PST 2004
+	- minor changes to ->search() method (which still had bugs)

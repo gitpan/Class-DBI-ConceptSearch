@@ -206,9 +206,9 @@ package Class::DBI::ConceptSearch;
 use strict;
 use XML::XPath;
 
-our $VERSION = '0.02';
+our $VERSION = '0.021';
 
-use constant DEBUG => 0;
+use constant DEBUG => 1;
 
 =head2 new
 
@@ -269,9 +269,9 @@ sub _init {
 =cut
 
 sub search {
-  my($self,$concept,$pattern) = @_;
+  my($self,$category,$pattern) = @_;
 
-  return () unless defined($concept) and defined($pattern);
+  return () unless defined($category) and defined($pattern);
 
   my $search_strategy;
 
@@ -295,11 +295,10 @@ sub search {
   my @hits;
 
   #a driver to test the search
-  foreach my $concept ($config->find('/searchlist/concept')->get_nodelist){
-    next unless $concept eq $concept->getAttribute('name');
+  foreach my $concept ($config->find('/conceptsearch/concept')->get_nodelist){
+    next unless $category eq $concept->getAttribute('name');
 
     my @concept_hits =();
-
     foreach my $source ($concept->find('source')->get_nodelist){
       my $sourceclass = $source->getAttribute('class');
       my $sourcefield = $source->getAttribute('field');
@@ -319,7 +318,7 @@ sub search {
           my @t = ();
 
           foreach my $source_match (@source_matches){
-            warn Dumper($source_match) if DEBUG;
+            warn Data::Dumper::Dumper($source_match) if DEBUG;
             warn "$t_targetclass->search( $t_targetfield => ".$source_match->$t_sourcefield." );" if DEBUG;
 
             my $v =  ref($source_match->$t_sourcefield)
