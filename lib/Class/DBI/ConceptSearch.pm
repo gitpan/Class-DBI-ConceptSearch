@@ -20,6 +20,7 @@ Class::DBI::ConceptSearch - Retrieve Class::DBI aggregates from high-level conce
  $cs->use_wildcards(1);
  $cs->use_implicit_wildcards(1);
  $cs->use_search_ilike(1);
+ $cs->use_search_lower(1);
 
  my(@tracks) = $cs->search( albums => 'Britney' );
 
@@ -206,9 +207,9 @@ package Class::DBI::ConceptSearch;
 use strict;
 use XML::XPath;
 
-our $VERSION = '0.021';
+our $VERSION = '0.03';
 
-use constant DEBUG => 1;
+use constant DEBUG => 0;
 
 =head2 new
 
@@ -279,12 +280,14 @@ sub search {
     $pattern =~ s/\*/%/gs;
 
     $pattern = '%'.$pattern.'%' if $self->use_implicit_wildcards;
+  }
 
-    if($self->use_search_ilike){
-      $search_strategy = 'search_ilike';
-    } else {
-      $search_strategy = 'search_like';
-    }
+  if($self->use_search_ilike){
+    $search_strategy = 'search_ilike';
+  } elsif($self->use_search_lower){
+    $search_strategy = 'search_lower';
+  } elsif($pattern =~ /%/) {
+    $search_strategy = 'search_like';
   } else {
     $search_strategy = 'search';
   }
@@ -293,15 +296,20 @@ sub search {
 
   my @concepts;
   my @hits;
+  my @concept_hits =();
 
   #a driver to test the search
+  warn "iterate over concepts using $search_strategy" if DEBUG;
   foreach my $concept ($config->find('/conceptsearch/concept')->get_nodelist){
+    warn "concept: $category" if DEBUG;
     next unless $category eq $concept->getAttribute('name');
+    warn "  searching..." if DEBUG;
 
-    my @concept_hits =();
     foreach my $source ($concept->find('source')->get_nodelist){
       my $sourceclass = $source->getAttribute('class');
       my $sourcefield = $source->getAttribute('field');
+
+      warn "searching: $sourceclass.$sourcefield for '$pattern' with $search_strategy";
       my(@source_matches) = $sourceclass->$search_strategy( $sourcefield => $pattern );
 
       if(@source_matches){
@@ -344,9 +352,10 @@ sub search {
 
     my %unique_hits = ();
     $unique_hits{ref($_).'_'.$_->id} = $_ foreach @concept_hits;
-    @hits = values %unique_hits;
-    return @hits;
+    push @hits, values %unique_hits;
   }
+
+  return @hits;
 }
 
 =head2 use_wildcards
@@ -404,6 +413,26 @@ sub use_search_ilike {
 
   return $self->{'use_search_ilike'} = shift if @_;
   return $self->{'use_search_ilike'};
+}
+
+
+=head2 use_search_lower
+
+  Title   : use_search_lower
+  Usage   : $obj->use_search_lower($newval)
+  Function: when true, search() uses search_lower()
+            where search_like() would have been used
+  Returns : value of use_search_lower (a scalar)
+  Args    : on set, new value (a scalar or undef, optional)
+
+
+=cut
+
+sub use_search_lower {
+  my $self = shift;
+
+  return $self->{'use_search_lower'} = shift if @_;
+  return $self->{'use_search_lower'};
 }
 
 

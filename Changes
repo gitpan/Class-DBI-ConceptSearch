@@ -10,3 +10,16 @@ Revision history for Perl extension Class::DBI::ConceptSearch.
 
 0.021 Mon Feb  2 11:57:11 PST 2004
 	- minor changes to ->search() method (which still had bugs)
+
+0.022 Fri Feb  5 18:34:04 PST 2004
+	- turned off DEBUG flag, shouldn't be on in distro
+
+0.03  Sat Feb  7 02:51:45 PST 2004
+	- enabled search_ilike strategy even when wildcards are
+	  not present if it is requested
+	- added use_search_lower() option to utilize functional
+	  indexes on lower()ed columns.  no attempt is made to
+	  validate such an index exists.  this method assumes the
+	  Class::DBI subclasses being used have a search_lower()
+	  method.
+	- fixed a bug in result collation in search()

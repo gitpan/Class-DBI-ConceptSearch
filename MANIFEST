@@ -1,8 +1,8 @@
 Changes
-lib/Class/DBI/ConceptSearch.pm
-Makefile.PL
 MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
+Makefile.PL
 README
-t/Class-DBI-ConceptSearch.t
 TODO
-META.yml                                 Module meta-data (added by MakeMaker)
+lib/Class/DBI/ConceptSearch.pm
+t/Class-DBI-ConceptSearch.t
