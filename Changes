@@ -4,3 +4,6 @@ Revision history for Perl extension Class::DBI::ConceptSearch.
 	- original version; created by h2xs 1.23 with options
 		-b 5.6.0 -aXn Class::DBI::ConceptSearch
 
+0.02  Mon Feb  2 11:44:30 PST 2004
+	- fixed a bug; ->search() was return a ref to the object
+		rather than the search results.

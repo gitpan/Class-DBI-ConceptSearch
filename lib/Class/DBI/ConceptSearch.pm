@@ -206,7 +206,7 @@ package Class::DBI::ConceptSearch;
 use strict;
 use XML::XPath;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use constant DEBUG => 0;
 
@@ -346,9 +346,8 @@ sub search {
     my %unique_hits = ();
     $unique_hits{ref($_).'_'.$_->id} = $_ foreach @concept_hits;
     @hits = values %unique_hits;
+    return @hits;
   }
-  return $self;
-
 }
 
 =head2 use_wildcards
