@@ -207,7 +207,7 @@ package Class::DBI::ConceptSearch;
 use strict;
 use XML::XPath;
 
-our $VERSION = '0.03';
+our $VERSION = '0.031';
 
 use constant DEBUG => 0;
 
@@ -309,7 +309,7 @@ sub search {
       my $sourceclass = $source->getAttribute('class');
       my $sourcefield = $source->getAttribute('field');
 
-      warn "searching: $sourceclass.$sourcefield for '$pattern' with $search_strategy";
+      warn "searching: $sourceclass.$sourcefield for '$pattern' with $search_strategy" if DEBUG;
       my(@source_matches) = $sourceclass->$search_strategy( $sourcefield => $pattern );
 
       if(@source_matches){

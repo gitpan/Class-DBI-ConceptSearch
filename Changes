@@ -23,3 +23,5 @@ Revision history for Perl extension Class::DBI::ConceptSearch.
 	  Class::DBI subclasses being used have a search_lower()
 	  method.
 	- fixed a bug in result collation in search()
+0.031 Sat Feb  7 11:45:19 PST 2004
+	- removed debug warning
