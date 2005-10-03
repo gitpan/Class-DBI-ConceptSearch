@@ -93,7 +93,7 @@ shines when you have a more complex data model.
 =head3 An example
 
  <?xml version="1.0" encoding="UTF-8"?> 
- <conceptsearch> 
+ <conceptsearch page_size="20"> 
 
    <!--
      Find artists with name matching search term
@@ -145,6 +145,7 @@ shines when you have a more complex data model.
  conceptsearch              # root container for searchable concepts
    attributes:
      name (optional)
+     page_size (optional)   # number of search results per page if the DBI object uses Class::DBI::Pager
    subelements:
      concept (0..*)
 
@@ -205,9 +206,12 @@ Internal methods are usually preceded with a _
 
 package Class::DBI::ConceptSearch;
 use strict;
+
+no strict 'refs';
+
 use XML::XPath;
 
-our $VERSION = '0.031';
+our $VERSION = '0.04';
 
 use constant DEBUG => 0;
 
@@ -252,6 +256,41 @@ sub _init {
     $self->$arg($arg{$arg}) if $self->can($arg);
   }
 
+  *Class::DBI::_do_search = sub {
+	my ($proto, $search_type, @args) = @_;
+	my $class = ref $proto || $proto;
+
+	@args = %{ $args[0] } if ref $args[0] eq "HASH";
+	my (@cols, @vals);
+	my $search_opts = @args % 2 ? pop @args : {};
+	while (my ($col, $val) = splice @args, 0, 2) {
+		#this regex allows the field being searched to be transformed,
+		#which can be useful for certain indexes, eg, in postgres:
+		#  SELECT * FROM book WHERE lower(title) LIKE 'symbolic logic'
+		#can use a functional index defined as:
+		#  CREATE INDEX ON book(lower(title))
+		#which performs much better than the ILIKE version of the same query:
+		#  SELECT * FROM book WHERE title ILIKE 'symbolic logic';
+
+		my($x,$y,$z) = $col =~ /^(.+\()(.+)(\))$/;
+		$col = $y if $y;
+
+		my $column = $class->find_column($col)
+			|| (List::Util::first { $_->accessor eq $col } $class->columns)
+			|| $class->_croak("$col is not a column of $class");
+                push @cols, $y ? "$x$col$z" : $col;
+		push @vals, $class->_deflated_column($column, $val);
+	}
+
+	my $frag = join " AND ",
+		map defined($vals[$_]) ? "$cols[$_] $search_type ?" : "$cols[$_] IS NULL",
+		0 .. $#cols;
+	$frag .= " ORDER BY $search_opts->{order_by}"
+		if $search_opts->{order_by};
+	return $class->sth_to_objects($class->sql_Retrieve($frag),
+		[ grep defined, @vals ]);
+  };
+
   return 1;
 }
 
@@ -270,7 +309,10 @@ sub _init {
 =cut
 
 sub search {
-  my($self,$category,$pattern) = @_;
+  #FIXME: the pod doc for this sub says args should come in as a hash but here they are used as an array.
+  my($self,$category,$pattern,$page_num) = @_;
+
+  $page_num = 1 unless defined($page_num);
 
   return () unless defined($category) and defined($pattern);
 
@@ -297,6 +339,12 @@ sub search {
   my @concepts;
   my @hits;
   my @concept_hits =();
+  my $page_size = 20;
+
+  #find the page_size for Class::DBI objects that support paging
+  foreach my $conceptsearch ($config->find('/conceptsearch')->get_nodelist){
+    if(defined($conceptsearch->getAttribute('page_size'))) { $page_size = $conceptsearch->getAttribute('page_size'); }
+  }
 
   #a driver to test the search
   warn "iterate over concepts using $search_strategy" if DEBUG;
@@ -310,7 +358,18 @@ sub search {
       my $sourcefield = $source->getAttribute('field');
 
       warn "searching: $sourceclass.$sourcefield for '$pattern' with $search_strategy" if DEBUG;
-      my(@source_matches) = $sourceclass->$search_strategy( $sourcefield => $pattern );
+
+      my @source_matches;
+      # check if the targetclass is able to use the Class::DBI::Pager API
+      if ($sourceclass->can("pager")) {
+        my $pager = $sourceclass->pager($page_size,$page_num);
+        $self->pager($pager);
+        (@source_matches) = $pager->$search_strategy($sourcefield => $pattern);
+      } else {
+        (@source_matches) = $sourceclass->$search_strategy($sourcefield => $pattern);
+      } 
+
+      #my(@source_matches) = $sourceclass->$search_strategy( $sourcefield => $pattern );
 
       if(@source_matches){
         warn "xforms start" if DEBUG;
@@ -354,8 +413,27 @@ sub search {
     $unique_hits{ref($_).'_'.$_->id} = $_ foreach @concept_hits;
     push @hits, values %unique_hits;
   }
-
+  # FIXME: should I close the db connection here???
   return @hits;
+}
+
+=head2 pager
+
+  Title   : pager
+  Usage   : $obj->pager($newval)
+  Function: sets/returns the pager object, useful for getting information
+            about the complete set of results
+  Returns : value of pager
+  Args    : on set, new value (a scalar or undef, optional)
+
+
+=cut
+
+sub pager {
+  my $self = shift;
+
+  return $self->{'pager'} = shift if @_;
+  return $self->{'pager'};
 }
 
 =head2 use_wildcards
